@@ -1,0 +1,49 @@
+# RUN ALL CONTAINERS FROM ROOT (folder with .sln file):
+# docker-compose build
+# docker-compose up
+#
+# RUN JUST THIS CONTAINER FROM ROOT (folder with .sln file):
+# docker build --pull -t web -f src/Web/Dockerfile .
+#
+# RUN COMMAND
+#  docker run --name eshopweb --rm -it -p 5106:5106 web
+
+
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+WORKDIR /app
+
+
+
+COPY *.sln .
+COPY . .
+
+WORKDIR /app/src/
+COPY ["src/Web/Web.csproj", "src/Web/"]
+COPY ["src/Infrastructure/Infrastructure.csproj", "Infrastructure/"]
+COPY ["src/BlazorShared/BlazorShared.csproj", "BlazorShared/"]
+COPY ["src/BlazorAdmin/BlazorAdmin.csproj", "BlazorAdmin/"]
+COPY ["src/ApplicationCore/ApplicationCore.csproj", "ApplicationCore/"]
+WORKDIR /app/src/Web
+RUN dotnet restore Web.csproj
+#
+#RUN dotnet publish Web.csproj -c Release -o out /app/src/Web
+
+
+#RUN dotnet publish Web.csproj -c Release -o /app/src/Web
+
+
+RUN dotnet build "Web.csproj" -c Release -o /app/build
+FROM build AS publish
+RUN dotnet publish "Web.csproj" -c Release -o /app/publish
+#FROM base AS final
+WORKDIR /app
+
+
+FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS runtime
+WORKDIR /app
+COPY --from=publish /app/publish ./
+
+# Optional: Set this here if not setting it from docker-compose.yml
+# ENV ASPNETCORE_ENVIRONMENT Development
+
+ENTRYPOINT ["dotnet", "Web.dll"]
